@@ -64,9 +64,6 @@ const useMobile = process.argv.includes("--mobile")
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
 const question = (text) => new Promise((resolve) => rl.question(text, resolve))
          
-const { makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
-
-
 async function startXeonBotInc() {  
     const { state, saveCreds } = await useMultiFileAuthState('./session');  
     const XeonBotInc = makeWASocket({ auth: state });  
