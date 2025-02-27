@@ -166,31 +166,56 @@ async function startXeonBotInc() {
     XeonBotInc.public = true
 
     XeonBotInc.serializeM = (m) => smsg(XeonBotInc, m, store)
-// Handle pairing code
-if (pairingCode && !XeonBotInc.authState.creds.registered) {
-    if (useMobile) throw new Error('Cannot use pairing code with mobile API');
 
-    let phoneNumber;
-    
-    // Ensure this block executes inside an async function
-    const getPhoneNumber = async () => {
+// Handle pairing code inside an async function
+async function handlePairingCode() {
+    if (pairingCode && !XeonBotInc.authState.creds.registered) {
+        if (useMobile) throw new Error('Cannot use pairing code with mobile API');
+
+        let phoneNumber;
+
         if (global.phoneNumber) {
-            return global.phoneNumber;
+            phoneNumber = global.phoneNumber;
         } else {
-            return await question(chalk.bgBlack(chalk.greenBright(`Please type your WhatsApp number 😍\nFor example: +917023951514 : `)));
+            phoneNumber = await question(chalk.bgBlack(chalk.greenBright(`Please type your WhatsApp number 😍\nFor example: +917023951514 : `)));
         }
-    };
 
-    phoneNumber = await getPhoneNumber();  // Await inside an async function
-    phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
+        phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
 
-    // Request pairing code
-    setTimeout(async () => {
-        let code = await XeonBotInc.requestPairingCode(phoneNumber);
-        code = code?.match(/.{1,4}/g)?.join("-") || code;
-        console.log(chalk.black(chalk.bgGreen(`Your Pairing Code : `)), chalk.black(chalk.white(code)));
-    }, 3000);
-               }
+        // Request pairing code asynchronously
+        setTimeout(async () => {
+            try {
+                let code = await XeonBotInc.requestPairingCode(phoneNumber);
+                code = code?.match(/.{1,4}/g)?.join("-") || code;
+                console.log(chalk.black(chalk.bgGreen(`Your Pairing Code : `)), chalk.black(chalk.white(code)));
+            } catch (error) {
+                console.error("Error requesting pairing code:", error);
+            }
+        }, 3000);
+    }
+}
+
+// Call the function inside an async wrapper
+(async () => {
+    await handlePairingCode();
+})();
+        // Request pairing code asynchronously
+        setTimeout(async () => {
+            try {
+                let code = await XeonBotInc.requestPairingCode(phoneNumber);
+                code = code?.match(/.{1,4}/g)?.join("-") || code;
+                console.log(chalk.black(chalk.bgGreen(`Your Pairing Code : `)), chalk.black(chalk.white(code)));
+            } catch (error) {
+                console.error("Error requesting pairing code:", error);
+            }
+        }, 3000);
+    }
+}
+
+// Call the function inside an async wrapper
+(async () => {
+    await handlePairingCode();
+})();
 
     // Connection handling
     XeonBotInc.ev.on('connection.update', async (s) => {
