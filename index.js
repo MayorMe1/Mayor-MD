@@ -192,7 +192,6 @@ async function handlePairingCode() {
                 console.error("Error requesting pairing code:", error);
             }
         }, 3000);
-    }
 }
 
 // Call the function inside an async wrapper
