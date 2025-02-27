@@ -64,30 +64,33 @@ const useMobile = process.argv.includes("--mobile")
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
 const question = (text) => new Promise((resolve) => rl.question(text, resolve))
          
-async function startXeonBotInc() {
-    let { version, isLatest } = await fetchLatestBaileysVersion()
-    const { state, saveCreds } = await useMultiFileAuthState(`./session`)
-    const msgRetryCounterCache = new NodeCache()
+const { makeWASocket, useMultiFileAuthState } = require('@whiskeysockets/baileys');
 
-    const XeonBotInc = makeWASocket({
-        version,
-        logger: pino({ level: 'silent' }),
-        printQRInTerminal: !pairingCode,
-        browser: ["Ubuntu", "Chrome", "20.0.04"],
-        auth: {
-            creds: state.creds,
-            keys: makeCacheableSignalKeyStore(state.keys, pino({ level: "fatal" }).child({ level: "fatal" })),
-        },
-        markOnlineOnConnect: true,
-        generateHighQualityLinkPreview: true,
-        getMessage: async (key) => {
-            let jid = jidNormalizedUser(key.remoteJid)
-            let msg = await store.loadMessage(jid, key.id)
-            return msg?.message || ""
-        },
-        msgRetryCounterCache,
-        defaultQueryTimeoutMs: undefined,
-    })
+
+async function startXeonBotInc() {  
+    const { state, saveCreds } = await useMultiFileAuthState('./session');  
+    const XeonBotInc = makeWASocket({ auth: state });  
+
+    XeonBotInc.ev.on('creds.update', saveCreds);  
+
+    XeonBotInc.ev.on('connection.update', (update) => {  
+        const { connection, lastDisconnect } = update;  
+
+        if (connection === 'close') {  
+            const statusCode = lastDisconnect?.error?.output?.statusCode;  
+
+            if (statusCode === 401) {  
+                console.log('⚠️ Banned or session expired. Waiting for manual relink.');  
+                return;  
+            } else {  
+                console.log('Reconnecting...');  
+                startXeonBotInc();  
+            }  
+        }  
+    });  
+
+    console.log('🤖 XeonBotInc is running...');  
+}    
 
     store.bind(XeonBotInc.ev)
 
@@ -264,7 +267,6 @@ startXeonBotInc().catch(error => {
     console.error('Fatal error:', error)
     process.exit(1)
 })
-
 // Better error handling
 process.on('uncaughtException', (err) => {
     console.error('Uncaught Exception:', err)
