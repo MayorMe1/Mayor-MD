@@ -166,27 +166,31 @@ async function startXeonBotInc() {
     XeonBotInc.public = true
 
     XeonBotInc.serializeM = (m) => smsg(XeonBotInc, m, store)
+// Handle pairing code
+if (pairingCode && !XeonBotInc.authState.creds.registered) {
+    if (useMobile) throw new Error('Cannot use pairing code with mobile API');
 
-    // Handle pairing code
-    if (pairingCode && !XeonBotInc.authState.creds.registered) {
-        if (useMobile) throw new Error('Cannot use pairing code with mobile api')
-
-        let phoneNumber
-        if (!!global.phoneNumber) {
-            phoneNumber = global.phoneNumber
+    let phoneNumber;
+    
+    // Ensure this block executes inside an async function
+    const getPhoneNumber = async () => {
+        if (global.phoneNumber) {
+            return global.phoneNumber;
         } else {
-            phoneNumber = await question(chalk.bgBlack(chalk.greenBright(`Please type your WhatsApp number 😍\nFor example: +917023951514 : `)))
+            return await question(chalk.bgBlack(chalk.greenBright(`Please type your WhatsApp number 😍\nFor example: +917023951514 : `)));
         }
+    };
 
-        phoneNumber = phoneNumber.replace(/[^0-9]/g, '')
+    phoneNumber = await getPhoneNumber();  // Await inside an async function
+    phoneNumber = phoneNumber.replace(/[^0-9]/g, '');
 
-        // Request pairing code
-        setTimeout(async () => {
-            let code = await XeonBotInc.requestPairingCode(phoneNumber)
-            code = code?.match(/.{1,4}/g)?.join("-") || code
-            console.log(chalk.black(chalk.bgGreen(`Your Pairing Code : `)), chalk.black(chalk.white(code)))
-        }, 3000)
-    }
+    // Request pairing code
+    setTimeout(async () => {
+        let code = await XeonBotInc.requestPairingCode(phoneNumber);
+        code = code?.match(/.{1,4}/g)?.join("-") || code;
+        console.log(chalk.black(chalk.bgGreen(`Your Pairing Code : `)), chalk.black(chalk.white(code)));
+    }, 3000);
+               }
 
     // Connection handling
     XeonBotInc.ev.on('connection.update', async (s) => {
