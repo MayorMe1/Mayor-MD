@@ -64,10 +64,11 @@ const useMobile = process.argv.includes("--mobile")
 const rl = readline.createInterface({ input: process.stdin, output: process.stdout })
 const question = (text) => new Promise((resolve) => rl.question(text, resolve))
          
-async function startXeonBotInc() {
-    let { version, isLatest } = await fetchLatestBaileysVersion()
-    const { state, saveCreds } = await useMultiFileAuthState(`./session`)
-    const msgRetryCounterCache = new NodeCache()
+ 
+    async function startXeonBotInc() {
+    let { version, isLatest } = await fetchLatestBaileysVersion();
+    const { state, saveCreds } = await useMultiFileAuthState(`./session`);
+    const msgRetryCounterCache = new NodeCache();
 
     const XeonBotInc = makeWASocket({
         version,
@@ -81,15 +82,45 @@ async function startXeonBotInc() {
         markOnlineOnConnect: true,
         generateHighQualityLinkPreview: true,
         getMessage: async (key) => {
-            let jid = jidNormalizedUser(key.remoteJid)
-            let msg = await store.loadMessage(jid, key.id)
-            return msg?.message || ""
+            let jid = jidNormalizedUser(key.remoteJid);
+            let msg = await store.loadMessage(jid, key.id);
+            return msg?.message || "";
         },
         msgRetryCounterCache,
         defaultQueryTimeoutMs: undefined,
-    })
+    });
 
-    store.bind(XeonBotInc.ev)
+    store.bind(XeonBotInc.ev);
+
+    XeonBotInc.ev.on("connection.update", async (update) => {
+        const { connection, lastDisconnect } = update;
+        if (connection === "close") {
+            let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
+
+            if (reason === DisconnectReason.badSession) {
+                console.log("Invalid session file. Delete the session and scan again.");
+                process.exit();
+            } else if (reason === DisconnectReason.connectionClosed) {
+                console.log("Connection closed. Restart manually in Replit.");
+                process.exit();
+            } else if (reason === DisconnectReason.connectionLost) {
+                console.log("Connection lost from server. Restart manually in Replit.");
+                process.exit();
+            } else if (reason === DisconnectReason.loggedOut) {
+                console.log("Logged out. Relink manually.");
+                process.exit();
+            } else if (reason === DisconnectReason.restartRequired) {
+                console.log("Restart required. Restart manually.");
+                process.exit();
+            } else {
+                console.log("Disconnected. No auto-reconnect. Restart manually.");
+                process.exit();
+            }
+        }
+    });
+
+    XeonBotInc.ev.on("creds.update", saveCreds);
+    }
 
     // Message handling
     XeonBotInc.ev.on('messages.upsert', async chatUpdate => {
