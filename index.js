@@ -92,73 +92,49 @@ const question = (text) => new Promise((resolve) => rl.question(text, resolve))
 
     store.bind(XeonBotInc.ev);
 
-    XeonBotInc.ev.on("connection.update", async (update) => {
-        const { connection, lastDisconnect } = update;
-        if (connection === "close") {
-            let reason = new Boom(lastDisconnect?.error)?.output?.statusCode;
-
-            if (reason === DisconnectReason.badSession) {
-                console.log("Invalid session file. Delete the session and scan again.");
-                process.exit();
-            } else if (reason === DisconnectReason.connectionClosed) {
-                console.log("Connection closed. Restart manually in Replit.");
-                process.exit();
-            } else if (reason === DisconnectReason.connectionLost) {
-                console.log("Connection lost from server. Restart manually in Replit.");
-                process.exit();
-            } else if (reason === DisconnectReason.loggedOut) {
-                console.log("Logged out. Relink manually.");
-                process.exit();
-            } else if (reason === DisconnectReason.restartRequired) {
-                console.log("Restart required. Restart manually.");
-                process.exit();
-            } else {
-                console.log("Disconnected. No auto-reconnect. Restart manually.");
-                process.exit();
-            }
-        }
-    });
-
-    XeonBotInc.ev.on("creds.update", saveCreds);
-    }
-
     // Message handling
-    XeonBotInc.ev.on('messages.upsert', async chatUpdate => {
-        try {
-            const mek = chatUpdate.messages[0]
-            if (!mek.message) return
-            mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message
-            if (mek.key && mek.key.remoteJid === 'status@broadcast') {
-                await handleStatus(XeonBotInc, chatUpdate);
-                return;
-            }
-            if (!XeonBotInc.public && !mek.key.fromMe && chatUpdate.type === 'notify') return
-            if (mek.key.id.startsWith('BAE5') && mek.key.id.length === 16) return
-            
-            try {
-                await handleMessages(XeonBotInc, chatUpdate, true)
-            } catch (err) {
-                console.error("Error in handleMessages:", err)
-                // Only try to send error message if we have a valid chatId
-                if (mek.key && mek.key.remoteJid) {
-                    await XeonBotInc.sendMessage(mek.key.remoteJid, { 
-                        text: '❌ An error occurred while processing your message.',
-                        contextInfo: {
-                            forwardingScore: 999,
-                            isForwarded: true,
-                            forwardedNewsletterMessageInfo: {
-                                newsletterJid: '120363161513685998@newsletter',
-                                newsletterName: 'KnightBot MD',
-                                serverMessageId: -1
-                            }
-                        }
-                    }).catch(console.error);
-                }
-            }
-        } catch (err) {
-            console.error("Error in messages.upsert:", err)
+XeonBotInc.ev.on('messages.upsert', async chatUpdate => {
+    try {
+        const mek = chatUpdate.messages[0];
+        if (!mek.message) return;
+
+        mek.message = (Object.keys(mek.message)[0] === 'ephemeralMessage') ? mek.message.ephemeralMessage.message : mek.message;
+
+        if (mek.key && mek.key.remoteJid === 'status@broadcast') {
+            await handleStatus(XeonBotInc, chatUpdate);
+            return;
         }
-    })
+
+        if (!XeonBotInc.public && !mek.key.fromMe && chatUpdate.type === 'notify') return;
+        if (mek.key.id.startsWith('BAE5') && mek.key.id.length === 16) return;
+
+        try {
+            await handleMessages(XeonBotInc, chatUpdate, true);
+        } catch (err) {
+            console.error("Error in handleMessages:", err);
+
+            // Ensure we have a valid chatId before sending error message
+            if (mek.key && mek.key.remoteJid) {
+                await XeonBotInc.sendMessage(mek.key.remoteJid, { 
+                    text: '❌ An error occurred while processing your message.',
+                    contextInfo: {
+                        forwardingScore: 999,
+                        isForwarded: true,
+                        externalAdReply: {
+                            title: 'KnightBot MD',
+                            body: 'Error Handler',
+                            thumbnailUrl: 'https://i.imgur.com/FcqtxPR.png',
+                            sourceUrl: 'https://wa.me/120363161513685998',
+                            mediaType: 1
+                        }
+                    }
+                }).catch(console.error);
+            }
+        }
+    } catch (err) {
+        console.error("Error in messages.upsert:", err);
+    }
+});
 
     // Add these event handlers for better functionality
     XeonBotInc.decodeJid = (jid) => {
